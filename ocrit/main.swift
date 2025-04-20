@@ -12,11 +12,13 @@ import AppKit
 
 let arguments = CommandLine.arguments
 
-func getArg(_ key: String) -> String? {
-   guard let index = arguments.firstIndex(of: key), arguments.count > index + 1 else {
-      return nil
-   }
-   return arguments[index + 1]
+func getArg(keys: [String]) -> String? {
+    for key in keys {
+        if let index = arguments.firstIndex(of: key), arguments.count > index + 1 {
+            return arguments[index + 1]
+        }
+    }
+    return nil
 }
 
 print("OCRTool - A command-line image text recognition utility powered by Vision framework")
@@ -24,14 +26,19 @@ print("-------------------------------------------------------------------------
 print("Author: Hu Gang (https://github.com/ihugang)")
 print("Copyright (c) 2025 Hu Gang (ihugang@gmail.com). All rights reserved.")
 
-guard let inputPath = getArg("--input") else {
-   print("Usage: OCRTool --input <image> [--txt <out.txt>] [--json <out.json>] [--draw <out.jpg>]")
+guard let inputPath = getArg(keys: ["--input", "-i"]) else {
+   print("Usage: OCRTool --input <image> | -i <image>")
+   print("              [--txt <out.txt> | -t <out.txt>]")
+   print("              [--json <out.json> | -j <out.json>]")
+   print("              [--draw <out.jpg> | -d <out.jpg>]")
+   print("              [--enhanced | -e]")
    exit(1)
 }
 
-let txtPath = getArg("--txt")
-let jsonPath = getArg("--json")
-let drawPath = getArg("--draw")
+let txtPath = getArg(keys: ["--txt", "-t"])
+let jsonPath = getArg(keys: ["--json", "-j"])
+let drawPath = getArg(keys: ["--draw", "-d"])
+let enhancedMode = arguments.contains("--enhanced") || arguments.contains("-e")
 
 func groupBlocksByLine(blocks: [OCRBlock], yThreshold: CGFloat = 8) -> [[OCRBlock]] {
     guard let image = NSImage(contentsOfFile: inputPath),
@@ -45,10 +52,12 @@ func groupBlocksByLine(blocks: [OCRBlock], yThreshold: CGFloat = 8) -> [[OCRBloc
         $0.boundingBox.rectIn(size: size).origin.y > $1.boundingBox.rectIn(size: size).origin.y
     }
 
+    #if DEBUG
     print("Sorted blocks by Y:")
     for block in sorted {
         print("  y: \(block.boundingBox.rectIn(size: size).origin.y), text: \(block.text)")
     }
+    #endif
 
     var grouped: [[OCRBlock]] = []
 
@@ -58,10 +67,14 @@ func groupBlocksByLine(blocks: [OCRBlock], yThreshold: CGFloat = 8) -> [[OCRBloc
            let lastY = lastGroup.first?.boundingBox.rectIn(size: size).origin.y,
            abs(y - lastY) <= yThreshold {
             grouped[grouped.count - 1].append(block)
+            #if DEBUG
             print("  ↳ Appended to existing group (Δy = \(abs(y - lastY)))")
+            #endif
         } else {
             grouped.append([block])
+            #if DEBUG
             print("  ↳ Started new group")
+            #endif
         }
     }
 
@@ -75,7 +88,7 @@ func groupBlocksByLine(blocks: [OCRBlock], yThreshold: CGFloat = 8) -> [[OCRBloc
     return grouped
 }
 
-let enhancedMode = arguments.contains("--enhanced")
+
 
 let processor = OCRProcessor(imagePath: inputPath)
 print("\nInput image: \(inputPath)")
@@ -83,8 +96,12 @@ print("\nInput image: \(inputPath)")
 processor.recognize { result in
    switch result {
       case .success(let blocks):
+         let grouped = groupBlocksByLine(blocks: blocks)
          if let txtPath = txtPath {
-            try? processor.saveTXT(to: txtPath, blocks: blocks)
+            let textOutput = enhancedMode
+                ? grouped.map { $0.map(\.text).joined(separator: " ") }.joined(separator: "\n")
+                : blocks.map(\.text).joined(separator: "\n")
+            try? textOutput.write(toFile: txtPath, atomically: true, encoding: .utf8)
          }
          if let jsonPath = jsonPath {
             try? processor.saveJSON(to: jsonPath, blocks: blocks)
@@ -94,11 +111,8 @@ processor.recognize { result in
          }
          if enhancedMode {
              print("------ Enhanced OCR Result ------")
-             let grouped = groupBlocksByLine(blocks: blocks)
-             for line in grouped {
-    let lineText = line.map(\.text).joined(separator: " ")
-    print(lineText)
-}
+             let enhancedText = grouped.map { $0.map(\.text).joined(separator: " ") }.joined(separator: "\n")
+             print(enhancedText)
          } else {
              print("------ OCR Result ------")
              for block in blocks {
