@@ -65,9 +65,37 @@ class OCRProcessor {
     }
 
     func saveJSON(to path: String, blocks: [OCRBlock]) throws {
+        guard let nsImage = image, let cgImage = nsImage.cgImage() else { return }
+        let size = CGSize(width: cgImage.width, height: cgImage.height)
+
+        struct PixelBox: Codable {
+            let x: CGFloat
+            let y: CGFloat
+            let width: CGFloat
+            let height: CGFloat
+        }
+
+        struct PixelBlock: Codable {
+            let text: String
+            let boundingBox: PixelBox
+        }
+
+        let pixelBlocks = blocks.map { block in
+            let rect = block.boundingBox.rectIn(size: size)
+            return PixelBlock(
+                text: block.text,
+                boundingBox: PixelBox(
+                    x: rect.origin.x,
+                    y: rect.origin.y,
+                    width: rect.size.width,
+                    height: rect.size.height
+                )
+            )
+        }
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(blocks)
+        let data = try encoder.encode(pixelBlocks)
         try data.write(to: URL(fileURLWithPath: path))
     }
 
