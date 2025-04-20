@@ -1,3 +1,5 @@
+[🇺🇸 English Version](README.en.md)
+
 # ocrit
 
 **ocrit** 是一个基于 Swift + Vision Framework 的命令行图像文字识别工具，支持中英文识别，支持多种输出格式，适合文本提取、批量图像处理场景。
