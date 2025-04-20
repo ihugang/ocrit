@@ -1,4 +1,4 @@
-[🇺🇸 English Version](README.en.md)
+[🇺🇸 English Version](readme.en.md)
 
 # ocrit
 
