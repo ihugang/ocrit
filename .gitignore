@@ -1,0 +1,24 @@
+# SwiftPM
+.build/
+Packages/
+.swiftpm/xcode/package.xcworkspace/
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.xccheckout
+
+# macOS 系统文件
+.DS_Store
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+
+# 日志与缓存
+*.lock
+*.log
